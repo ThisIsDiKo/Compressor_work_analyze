@@ -43,59 +43,75 @@ class DataVisualisation(QMainWindow):
         self.open_file()
 
     def open_file(self):
-        fname = QFileDialog.getOpenFileName(self,'Open File', 'C:\\Users\\ADiKo\\Desktop\\', 'txt file (*.txt)')[0]
-        print(fname)
-        self.csvFileName = fname.split('.')[0] + ".csv"
+        fnamesRaw = QFileDialog.getOpenFileNames(self,'Open File', 'C:\\Users\\ADiKo\\Desktop\\', 'txt file (*.txt)')[0]
+        print(fnamesRaw)
+        #self.csvFileName = fname.split('.')[0] + ".csv"
         results_dict = {"comp": 0, "cycle": 0, "x": [], "y": []}
         results_data = []
         csv_results = []
         csv_dict = {"comp": 0, "cycle": 0, "cs": 0, "hs": []}
         curComp = -1
         curCycle = 0
+        lastCycleInFile = 0
+        fnames_dict = {}
+        for f in fnamesRaw:
+            k = f.split(".")[-2].split("_")[-1]
+            fnames_dict[k] = f
+        print(fnames_dict)
+        l_dict = fnames_dict.keys()
+        l_dict = list(l_dict)
+        l_dict.sort()
+        print(l_dict)
         try:
-            f = open(fname, 'r')
-            print("file opened")
-            for line in f:
-                if len(line) > 2:
-                    if line.startswith("Comp"):
-                        if curComp >= 0:
-                            results_data.append(results_dict)
-                            csv_results.append(csv_dict)
-                            results_dict = {"comp": 0, "cycle": 0, "x": [], "y": []}
-                            csv_dict = {"comp": 0, "cycle": 0, "cs": 0, "hs": []}
-                        curComp = int(line[7])
-                        results_dict["comp"] = curComp
-                        csv_dict["comp"] = curComp
-                    elif line.startswith("Cyle"):
-                        l = line.split(" ")
-                        curCycle = int(l[2])
-                        print("cur cycle is: %d" % (curCycle))
-                        if curComp == 0:
-                            curCycle = int(curCycle / 2) + 1
+            for k in l_dict:
+                fname = fnames_dict[k]
+                f = open(fname, 'r')
+                print("file opened: ", end="")
+                print(fname)
+                for line in f:
+                    if len(line) > 2:
+                        if line.startswith("Comp"):
+                            if curComp >= 0:
+                                results_data.append(results_dict)
+                                csv_results.append(csv_dict)
+                                results_dict = {"comp": 0, "cycle": 0, "x": [], "y": []}
+                                csv_dict = {"comp": 0, "cycle": 0, "cs": 0, "hs": []}
+                            curComp = int(line[7])
+                            results_dict["comp"] = curComp
+                            csv_dict["comp"] = curComp
+                        elif line.startswith("Cyle"):
+                            l = line.split(" ")
+                            curCycle = int(l[2])
+                            print("cur cycle is: %d" % (curCycle))
+                            if curComp == 0:
+                                curCycle = int(curCycle / 2) + 1
+                            else:
+                                curCycle = int(curCycle / 2)
+                            curCycle += lastCycleInFile
+                            results_dict["cycle"] = curCycle
+                            csv_dict["cycle"] = curCycle
+                            #lastCycleInFile = curCycle
                         else:
-                            curCycle = int(curCycle / 2)
-                        results_dict["cycle"] = curCycle
-                        csv_dict["cycle"] = curCycle
-                    else:
-                        if line.startswith("cs") or line.startswith("hs"):
-                            l = line.split(",")
-                            results_dict["x"].append(int(l[1]))
-                            results_dict["y"].append(int(l[2]))
-                        else:
-                            l = line.split(",")
-                            results_dict["x"].append(int(l[1]))
-                            results_dict["y"].append(int(l[2]))
+                            if line.startswith("cs") or line.startswith("hs"):
+                                l = line.split(",")
+                                results_dict["x"].append(int(l[1]))
+                                results_dict["y"].append(int(l[2]))
+                            else:
+                                l = line.split(",")
+                                results_dict["x"].append(int(l[1]))
+                                results_dict["y"].append(int(l[2]))
 
-                        if line.startswith("cs"):
-                            l = line.split(",")
-                            csv_dict["cs"] = int(l[4]) - int(l[1])
-                        elif line.startswith("hs"):
-                            l = line.split(",")
-                            csv_dict["hs"].append(int(l[4]) - int(l[1]))
+                            if line.startswith("cs"):
+                                l = line.split(",")
+                                csv_dict["cs"] = int(l[4]) - int(l[1])
+                            elif line.startswith("hs"):
+                                l = line.split(",")
+                                csv_dict["hs"].append(int(l[4]) - int(l[1]))
 
-            results_data.append(results_dict)
-            csv_results.append(csv_dict)
-            f.close()
+                results_data.append(results_dict)
+                csv_results.append(csv_dict)
+                f.close()
+                lastCycleInFile = curCycle
         except Exception as ex:
             template = "An exception of type {0} occurred. Arguments:\n{1!r}"
             message = template.format(type(ex).__name__, ex.args)
@@ -107,7 +123,7 @@ class DataVisualisation(QMainWindow):
         for r in csv_results:
             print(r)
 
-        self.write_to_csv(self.csvFileName, csv_results)
+        self.write_to_csv("Common Data.csv", csv_results)
 
         '''
         for r in results_data:
@@ -139,7 +155,6 @@ class DataVisualisation(QMainWindow):
 
     def write_to_csv(self, csv_name, data):
         try:
-            print(self.csvFileName)
             f = open(csv_name, 'w')
 
             max_hs_steps = 0
